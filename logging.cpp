@@ -19,9 +19,6 @@ void lg::redirect_to_stdout()
 {
     std::streambuf* b1 = std::cout.rdbuf();
 
-    std::streambuf* b2 = lg::output->rdbuf();
-
-    //std::ios* r1 = &std::cout;
     std::ios* r2 = lg::output;
 
     r2->rdbuf(b1);
