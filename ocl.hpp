@@ -75,16 +75,57 @@ namespace cl
         kernel(program& p, const std::string& kname);
     };
 
+    struct arg_info
+    {
+        void* ptr = nullptr;
+        int64_t size = 0;
+    };
+
+    struct args
+    {
+        std::vector<arg_info> arg_list;
+
+        template<typename T>
+        inline
+        void push_back(T& val)
+        {
+            arg_info inf;
+            inf.ptr = &val;
+            inf.size = sizeof(T);
+
+            arg_list.push_back(inf);
+        }
+    };
+
     struct command_queue
     {
         cl_command_queue cqueue;
 
+        command_queue(context& ctx);
+
         ///size defaults to -1 which means map the whole buffer
         void* map(buffer& v, cl_map_flags flag, int64_t size = -1);
         void unmap(buffer& v, void* ptr);
+
+        ///make this finally non stupid
+        void exec(const std::string& kname, args& pack)
+        {
+
+        }
     };
 
     kernel load_kernel(context& ctx, program& p, const std::string& name);
+}
+
+template<>
+inline
+void cl::args::push_back<cl::buffer>(cl::buffer& val)
+{
+    cl::arg_info inf;
+    inf.ptr = &val.get();
+    inf.size = sizeof(val.get());
+
+    arg_list.push_back(inf);
 }
 
 #endif // OCL_HPP_INCLUDED

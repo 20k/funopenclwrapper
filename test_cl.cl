@@ -1,5 +1,5 @@
 __kernel
-void test_program()
+void test_kernel()
 {
 
 }

@@ -187,6 +187,8 @@ cl::context::context()
     {
         lg::log("Error creating context: ", error);
 
+        lg::log("Do you have a valid OpenGL context?");
+
         exit(error);
     }
     else
@@ -249,6 +251,18 @@ cl::kernel::kernel(program& p, const std::string& kname)
     name = kname;
 
     loaded = true;
+}
+
+cl::command_queue::command_queue(cl::context& ctx)
+{
+    cl_int err;
+
+    cqueue = clCreateCommandQueue(ctx.get(), ctx.selected_device, 0, &err);
+
+    if(err != CL_SUCCESS)
+    {
+        lg::log("Error creating command queue");
+    }
 }
 
 void* cl::command_queue::map(buffer& v, cl_map_flags flag, int64_t size)

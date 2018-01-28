@@ -19,7 +19,9 @@ int main()
     cl::program program(ctx, "test_cl.cl");
     program.build_with(ctx, "");
 
-    cl::kernel test_kernel(program, "test_program");
+    cl::kernel test_kernel(program, "test_kernel");
+
+    cl::command_queue cqueue(ctx);
 
     return 0;
 }
