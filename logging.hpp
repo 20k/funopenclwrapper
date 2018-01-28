@@ -24,7 +24,8 @@ namespace lg
     void
     log_b(const T& dat)
     {
-        *output << std::to_string(dat);
+        //*output << std::to_string(dat);
+        *output << dat;
     }
 
     ///I think there's a better sfinae solution to this, but
