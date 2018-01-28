@@ -211,8 +211,6 @@ namespace cl
         operator cl_command_queue() {return cqueue;}
     };
 
-
-
     ///need a centralised way to invalidate all buffers
     ///associated with a context
     ///and then reallocate them
@@ -224,7 +222,7 @@ namespace cl
         int64_t alloc_size = 0;
         context& ctx;
 
-        size_t image_dims[3] = {0};
+        size_t image_dims[3] = {1,1,1};
         int64_t image_dimensionality = 1;
 
         enum internal_format
@@ -244,15 +242,22 @@ namespace cl
 
         void write_all(command_queue& write_on, const void* ptr)
         {
+            cl_int val = CL_SUCCESS;
+
             if(format == BUFFER)
             {
-                clEnqueueWriteBuffer(write_on, cmem, CL_TRUE, 0, alloc_size, ptr, 0, nullptr, nullptr);
+                val = clEnqueueWriteBuffer(write_on, cmem, CL_TRUE, 0, alloc_size, ptr, 0, nullptr, nullptr);
             }
             else
             {
                 size_t origin[3] = {0};
 
-                clEnqueueWriteImage(write_on, cmem, CL_TRUE, origin, image_dims, 0, 0, ptr, 0, nullptr, nullptr);
+                val = clEnqueueWriteImage(write_on, cmem, CL_TRUE, origin, image_dims, 0, 0, ptr, 0, nullptr, nullptr);
+            }
+
+            if(val != CL_SUCCESS)
+            {
+                lg::log("Error writing to image", val);
             }
         }
 
@@ -288,15 +293,22 @@ namespace cl
 
             ret.resize(alloc_size / sizeof(T));
 
+            cl_int val = CL_SUCCESS;
+
             if(format == BUFFER)
             {
-                clEnqueueReadBuffer(read_on, cmem, CL_TRUE, 0, alloc_size, &ret[0], 0, nullptr, nullptr);
+                val = clEnqueueReadBuffer(read_on, cmem, CL_TRUE, 0, alloc_size, &ret[0], 0, nullptr, nullptr);
             }
             else
             {
                 size_t origin[3] = {0};
 
-                clEnqueueReadImage(read_on, cmem, CL_TRUE, origin, image_dims, 0, 0, &ret[0], 0, nullptr, nullptr);
+                val = clEnqueueReadImage(read_on, cmem, CL_TRUE, origin, image_dims, 0, 0, &ret[0], 0, nullptr, nullptr);
+            }
+
+            if(val != CL_SUCCESS)
+            {
+                lg::log("Error writing to image", val);
             }
 
             return ret;
@@ -357,13 +369,13 @@ namespace cl
 
             cl_image_format format;
             format.image_channel_order = CL_RGBA;
-            format.image_channel_data_type = CL_HALF_FLOAT;
+            format.image_channel_data_type = CL_FLOAT;
 
             ///TODO: REMOVE THIS CHECK
             static_assert(N == 2);
 
             cl_int err;
-            cmem = clCreateImage2D(ctx, CL_MEM_READ_WRITE, dims.x(), dims.y(), &format, 0, nullptr, &err);
+            cmem = clCreateImage2D(ctx, CL_MEM_READ_WRITE, &format, dims.x(), dims.y(), 0, nullptr, &err);
 
             if(err != CL_SUCCESS)
             {
@@ -381,6 +393,11 @@ namespace cl
 
             if(data.size() == 0)
                 return;
+
+            /*for(const T& i : data)
+            {
+                std::cout << i << std::endl;
+            }*/
 
             alloc_n_img(write_on, &data[0], dims);
         }
