@@ -34,7 +34,7 @@ int main()
         data.push_back(i);
     }
 
-    buf->alloc_n(cqueue, data);
+    buf->alloc(cqueue, data);
 
     cl::args none;
     none.push_back(buf);

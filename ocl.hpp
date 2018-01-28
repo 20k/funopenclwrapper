@@ -227,6 +227,15 @@ namespace cl
         }
 
         template<typename T>
+        void write_all(command_queue& write_on, std::vector<T>& data)
+        {
+            if(data.size() == 0)
+                return;
+
+            clEnqueueWriteBuffer(write_on, cmem, CL_TRUE, 0, data.size() * sizeof(T), &data[0], 0, nullptr, nullptr);
+        }
+
+        template<typename T>
         std::vector<T> read_all(command_queue& read_on)
         {
             std::vector<T> ret;
@@ -260,7 +269,7 @@ namespace cl
         }
 
         template<typename T>
-        void alloc_n(command_queue& write_on, const std::vector<T>& data)
+        void alloc(command_queue& write_on, const std::vector<T>& data)
         {
             if(data.size() == 0)
                 return;
