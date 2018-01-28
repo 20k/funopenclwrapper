@@ -25,7 +25,7 @@ int main()
 
     cl::buffer_manager buffer_manage;
 
-    cl::buffer* buf = buffer_manage.fetch(ctx, nullptr);
+    cl::buffer* buf = buffer_manage.fetch<cl::buffer>(ctx, nullptr);
 
     std::vector<int> data;
 

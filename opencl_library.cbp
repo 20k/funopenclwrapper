@@ -32,7 +32,28 @@
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
 		</Compiler>
+		<Linker>
+			<Add option="-lmingw32" />
+			<Add option="-limgui" />
+			<Add option="-lsfml-graphics" />
+			<Add option="-lsfml-audio" />
+			<Add option="-lsfml-network" />
+			<Add option="-lsfml-window" />
+			<Add option="-lsfml-system" />
+			<Add option="-lfreetype" />
+			<Add option="-lopengl32" />
+			<Add option="-lws2_32" />
+			<Add option="-lflac" />
+			<Add option="-lopenal32" />
+			<Add option="-logg" />
+			<Add option="-lopencl" />
+		</Linker>
+		<Unit filename="logging.cpp" />
+		<Unit filename="logging.hpp" />
 		<Unit filename="main.cpp" />
+		<Unit filename="ocl.cpp" />
+		<Unit filename="ocl.hpp" />
+		<Unit filename="test_cl.cl" />
 		<Extensions>
 			<code_completion />
 			<envvars />

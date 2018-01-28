@@ -1,6 +1,10 @@
 #ifndef OCL_HPP_INCLUDED
 #define OCL_HPP_INCLUDED
 
+#include <gl/glew.h>
+#include <windows.h>
+#include <gl/gl.h>
+#include <gl/glext.h>
 #include <cl/cl.h>
 #include <string>
 #include <vector>
@@ -208,6 +212,8 @@ namespace cl
     ///need a centralised way to invalidate all buffers
     ///associated with a context
     ///and then reallocate them
+    ///NEEDS TO WORK WITH IMAGES WHEN WE DO RECONTEXTING
+    ///OTHERWISE ALL GL INTEROP WILL BREAK
     struct buffer
     {
         cl_mem cmem;
@@ -289,11 +295,12 @@ namespace cl
     {
         std::map<buffer*, buffer*> buffers;
 
-        buffer* fetch(context& ctx, buffer* old)
+        template<typename U, typename... T>
+        U* fetch(context& ctx, U* old, T&&... args)
         {
             if(old == nullptr)
             {
-                buffer* buf = new buffer(ctx);
+                U* buf = new U(ctx, std::forward<T>(args)...);
 
                 buffers[buf] = buf;
 
@@ -301,9 +308,28 @@ namespace cl
             }
             else
             {
-                return buffers[old];
+                return (U*)buffers[old];
             }
         }
+    };
+
+    struct cl_gl_interop_texture : buffer
+    {
+        cl_gl_interop_texture(context& ctx, int w, int h);
+
+        int w, h;
+
+        bool acquired = false;
+
+        GLuint renderbuffer_id;
+
+        void gl_blit_raw(GLuint target, GLuint source);
+        void gl_blit_me(GLuint target, command_queue& cqueue);
+
+        ///to opencl
+        void acquire(command_queue& cqueue);
+        ///release to opengl
+        void unacquire(command_queue& cqueue);
     };
 
     //kernel load_kernel(context& ctx, program& p, const std::string& name);

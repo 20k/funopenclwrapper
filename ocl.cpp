@@ -299,6 +299,95 @@ void cl::command_queue::unmap(buffer& v, void* ptr)
     clEnqueueUnmapMemObject(cqueue, v, ptr, 0, NULL, NULL);
 }
 
+cl::cl_gl_interop_texture::cl_gl_interop_texture(context& ctx, int w, int h) : buffer(ctx), w(w), h(h)
+{
+    PFNGLGENFRAMEBUFFERSEXTPROC glGenFramebuffersEXT = (PFNGLGENFRAMEBUFFERSEXTPROC)wglGetProcAddress("glGenFramebuffersEXT");
+    PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC)wglGetProcAddress("glBindFramebufferEXT");
+    PFNGLGENRENDERBUFFERSEXTPROC glGenRenderbuffersEXT = (PFNGLGENRENDERBUFFERSEXTPROC)wglGetProcAddress("glGenRenderbuffersEXT");
+    PFNGLBINDRENDERBUFFEREXTPROC glBindRenderbufferEXT = (PFNGLBINDRENDERBUFFEREXTPROC)wglGetProcAddress("glBindRenderbufferEXT");
+    PFNGLRENDERBUFFERSTORAGEEXTPROC glRenderbufferStorageEXT = (PFNGLRENDERBUFFERSTORAGEEXTPROC)wglGetProcAddress("glRenderbufferStorageEXT");
+    PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC glFramebufferRenderbufferEXT = (PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC)wglGetProcAddress("glFramebufferRenderbufferEXT");
+
+    GLuint screen_id;
+
+    glGenRenderbuffersEXT(1, &screen_id);
+    glBindRenderbufferEXT(GL_RENDERBUFFER, screen_id);
+
+    ///generate storage for renderbuffer
+    glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_RGBA16, w, h);
+
+    GLuint framebuf;
+
+    ///get a framebuffer and bind it
+    glGenFramebuffersEXT(1, &framebuf);
+    glBindFramebufferEXT(GL_FRAMEBUFFER, framebuf);
+
+    ///attach one to the other
+    glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, screen_id);
+
+    ///have opencl nab this and store in cmem
+    cl_int err;
+    cmem = clCreateFromGLRenderbuffer(ctx, CL_MEM_READ_WRITE, screen_id, &err);
+
+    if(err != CL_SUCCESS)
+    {
+        lg::log("Failure in cl_gl_interop_texture constructor");
+    }
+
+    renderbuffer_id = framebuf;
+
+    //compute::opengl_enqueue_acquire_gl_objects(1, &texture_gl.get(), cqueue);
+}
+
+void cl::cl_gl_interop_texture::gl_blit_raw(GLuint target, GLuint source)
+{
+    PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC)wglGetProcAddress("glBindFramebufferEXT");
+
+    PFNGLBLITFRAMEBUFFEREXTPROC glBlitFramebufferEXT = (PFNGLBLITFRAMEBUFFEREXTPROC)wglGetProcAddress("glBlitFramebufferEXT");
+
+
+    glBindFramebufferEXT(GL_READ_FRAMEBUFFER, source);
+
+    glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, target);
+
+    glDrawBuffer(GL_BACK);
+
+    int dest_w = w;
+    int dest_h = h;
+
+    ///blit buffer to screen
+    glBlitFramebufferEXT(0 , 0, w, h, 0, 0, dest_w, dest_h, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+void cl::cl_gl_interop_texture::gl_blit_me(GLuint target, command_queue& cqueue)
+{
+    unacquire(cqueue);
+
+    gl_blit_raw(target, renderbuffer_id);
+
+    acquire(cqueue);
+}
+
+void cl::cl_gl_interop_texture::acquire(command_queue& cqueue)
+{
+    if(acquired)
+        return;
+
+    acquired = true;
+
+    clEnqueueAcquireGLObjects(cqueue, 1, &cmem, 0, nullptr, nullptr);
+}
+
+void cl::cl_gl_interop_texture::unacquire(command_queue& cqueue)
+{
+    if(!acquired)
+        return;
+
+    acquired = false;
+
+    clEnqueueReleaseGLObjects(cqueue, 1, &cmem, 0, nullptr, nullptr);
+}
+
 /*cl::kernel cl::load_kernel(context& ctx, program& p, const std::string& name)
 {
     //program_ensure_built();
