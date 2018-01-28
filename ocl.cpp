@@ -203,8 +203,20 @@ void cl::context::rebuild()
     *this = cl::context();
 }
 
+bool file_exists(const std::string& file_name)
+{
+    std::ifstream file(file_name);
+    return file.good();
+}
+
 cl::program::program(context& ctx, const std::string& fname) : saved_context(ctx), saved_fname(fname)
 {
+    if(!file_exists(fname))
+    {
+        lg::log("File", fname, "does not exist");
+        exit(5);
+    }
+
     std::string src = read_file(fname);
 
     size_t len = src.length();
@@ -230,6 +242,8 @@ void cl::program::build_with(context& ctx, const std::string& options)
 
         cl_build_status bstatus;
         clGetProgramBuildInfo(cprogram, ctx.selected_device, CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &bstatus, nullptr);
+
+        lg::log("Err: ", bstatus);
 
         assert(bstatus == CL_BUILD_ERROR);
 
