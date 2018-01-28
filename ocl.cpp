@@ -11,8 +11,7 @@
 #include <gl/glext.h>
 #include <assert.h>
 
-
-std::unordered_map<std::string, std::map<int, const void*>> cl::kernel_map;
+std::map<std::string, cl::kernel*> cl::kernels;
 
 inline
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
@@ -138,6 +137,8 @@ std::string read_file(const std::string& file)
 
 cl::context::context()
 {
+    kernels.clear();
+
     cl_int error = 0;   // Used to handle error codes
 
     error = get_platform_ids(&platform);
