@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <map>
 #include "logging.hpp"
+#include <vec/vec.hpp>
 
 namespace cl
 {
@@ -210,6 +211,8 @@ namespace cl
         operator cl_command_queue() {return cqueue;}
     };
 
+
+
     ///need a centralised way to invalidate all buffers
     ///associated with a context
     ///and then reallocate them
@@ -221,6 +224,17 @@ namespace cl
         int64_t alloc_size = 0;
         context& ctx;
 
+        size_t image_dims[3] = {0};
+        int64_t image_dimensionality = 1;
+
+        enum internal_format
+        {
+            BUFFER,
+            IMAGE,
+        };
+
+        internal_format format = BUFFER;
+
         buffer(context& ctx) : ctx(ctx) {}
 
         cl_mem& get()
@@ -230,7 +244,16 @@ namespace cl
 
         void write_all(command_queue& write_on, const void* ptr)
         {
-            clEnqueueWriteBuffer(write_on, cmem, CL_TRUE, 0, alloc_size, ptr, 0, nullptr, nullptr);
+            if(format == BUFFER)
+            {
+                clEnqueueWriteBuffer(write_on, cmem, CL_TRUE, 0, alloc_size, ptr, 0, nullptr, nullptr);
+            }
+            else
+            {
+                size_t origin[3] = {0};
+
+                clEnqueueWriteImage(write_on, cmem, CL_TRUE, origin, image_dims, 0, 0, ptr, 0, nullptr, nullptr);
+            }
         }
 
         template<typename T>
@@ -239,7 +262,20 @@ namespace cl
             if(data.size() == 0)
                 return;
 
-            clEnqueueWriteBuffer(write_on, cmem, CL_TRUE, 0, data.size() * sizeof(T), &data[0], 0, nullptr, nullptr);
+            write_all(write_on, &data[0]);
+
+            /*clEnqueueWriteBuffer(write_on, cmem, CL_TRUE, 0, data.size() * sizeof(T), &data[0], 0, nullptr, nullptr);
+
+            if(format == BUFFER)
+            {
+                clEnqueueWriteBuffer(write_on, cmem, CL_TRUE, 0, alloc_size, ptr, 0, nullptr, nullptr);
+            }
+            else
+            {
+                size_t origin[3] = {0};
+
+                clEnqueueWriteImage(write_on, cmem, CL_TRUE, origin, image_dims, 0, 0, ptr, 0, nullptr, nullptr);
+            }*/
         }
 
         template<typename T>
@@ -252,7 +288,16 @@ namespace cl
 
             ret.resize(alloc_size / sizeof(T));
 
-            clEnqueueReadBuffer(read_on, cmem, CL_TRUE, 0, alloc_size, &ret[0], 0, nullptr, nullptr);
+            if(format == BUFFER)
+            {
+                clEnqueueReadBuffer(read_on, cmem, CL_TRUE, 0, alloc_size, &ret[0], 0, nullptr, nullptr);
+            }
+            else
+            {
+                size_t origin[3] = {0};
+
+                clEnqueueReadImage(read_on, cmem, CL_TRUE, origin, image_dims, 0, 0, &ret[0], 0, nullptr, nullptr);
+            }
 
             return ret;
         }
@@ -260,10 +305,11 @@ namespace cl
         template<typename T>
         void alloc_n(command_queue& write_on, const T* data, int num)
         {
-            cl_int err;
+            format = BUFFER;
 
             alloc_size = sizeof(T) * num;
 
+            cl_int err;
             cmem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, alloc_size, nullptr, &err);
 
             if(err != CL_SUCCESS)
@@ -278,10 +324,65 @@ namespace cl
         template<typename T>
         void alloc(command_queue& write_on, const std::vector<T>& data)
         {
+            format = BUFFER;
+
             if(data.size() == 0)
                 return;
 
             alloc_n(write_on, &data[0], data.size());
+        }
+
+        template<typename T, int N>
+        void alloc_n_img(command_queue& write_on, const T* data, const vec<N, int>& dims)
+        {
+            format = IMAGE;
+            image_dimensionality = N;
+
+            int sum = 1;
+
+            ///eg for a 2 dimension vector we get
+            ///x * y
+            ///or a 3d vec we get x * y * z;
+            for(int i=0; i < N; i++)
+            {
+                sum = sum * dims.v[i];
+            }
+
+            alloc_size = sizeof(T) * sum;
+
+            for(int i=0; i < N; i++)
+            {
+                image_dims[i] = dims.v[i];
+            }
+
+            cl_image_format format;
+            format.image_channel_order = CL_RGBA;
+            format.image_channel_data_type = CL_HALF_FLOAT;
+
+            ///TODO: REMOVE THIS CHECK
+            static_assert(N == 2);
+
+            cl_int err;
+            cmem = clCreateImage2D(ctx, CL_MEM_READ_WRITE, dims.x(), dims.y(), &format, 0, nullptr, &err);
+
+            if(err != CL_SUCCESS)
+            {
+                lg::log("Error creating image2d");
+                return;
+            }
+
+            write_all(write_on, data);
+        }
+
+        template<typename T, int N>
+        void alloc_img(command_queue& write_on, const std::vector<T>& data, const vec<N, int>& dims)
+        {
+            format = IMAGE;
+
+            if(data.size() == 0)
+                return;
+
+            alloc_n_img(write_on, &data[0], dims);
         }
 
         void release()
