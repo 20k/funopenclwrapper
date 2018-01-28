@@ -23,7 +23,21 @@ int main()
 
     cl::command_queue cqueue(ctx);
 
+    cl::buffer_manager buffer_manage;
+
+    cl::buffer* buf = buffer_manage.fetch(ctx, nullptr);
+
+    std::vector<int> data;
+
+    for(int i=0; i < 128; i++)
+    {
+        data.push_back(i);
+    }
+
+    buf->alloc_n(cqueue, data);
+
     cl::args none;
+    none.push_back(buf);
 
     cqueue.exec(program, "test_kernel", none, {128}, {16});
 

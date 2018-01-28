@@ -17,19 +17,6 @@ namespace cl
 
     cl_int get_platform_ids(cl_platform_id* clSelectedPlatformID);
 
-    struct buffer
-    {
-        cl_mem cmem;
-        int64_t alloc_size = 0;
-
-        cl_mem& get()
-        {
-            return cmem;
-        }
-
-        operator cl_mem() {return cmem;}
-    };
-
     struct context
     {
         cl_platform_id platform;
@@ -42,6 +29,8 @@ namespace cl
         void rebuild();
 
         cl_context& get(){return ccontext;}
+
+        operator cl_context() {return ccontext;}
     };
 
     struct program
@@ -112,6 +101,8 @@ namespace cl
             arg_list.push_back(inf);
         }
     };
+
+    struct buffer;
 
     template<typename T>
     struct map_info
@@ -210,6 +201,100 @@ namespace cl
         {
             clFinish(cqueue);
         }
+
+        operator cl_command_queue() {return cqueue;}
+    };
+
+    ///need a centralised way to invalidate all buffers
+    ///associated with a context
+    ///and then reallocate them
+    struct buffer
+    {
+        cl_mem cmem;
+        int64_t alloc_size = 0;
+        context& ctx;
+
+        buffer(context& ctx) : ctx(ctx) {}
+
+        cl_mem& get()
+        {
+            return cmem;
+        }
+
+        void write_all(command_queue& write_on, const void* ptr)
+        {
+            clEnqueueWriteBuffer(write_on, cmem, CL_TRUE, 0, alloc_size, ptr, 0, nullptr, nullptr);
+        }
+
+        template<typename T>
+        std::vector<T> read_all(command_queue& read_on)
+        {
+            std::vector<T> ret;
+
+            if(alloc_size == 0)
+                return ret;
+
+            ret.resize(alloc_size / sizeof(T));
+
+            clEnqueueReadBuffer(read_on, cmem, CL_TRUE, 0, alloc_size, &ret[0], 0, nullptr, nullptr);
+
+            return ret;
+        }
+
+        template<typename T>
+        void alloc_n(command_queue& write_on, const T* data, int num)
+        {
+            cl_int err;
+
+            alloc_size = sizeof(T) * num;
+
+            cmem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, alloc_size, nullptr, &err);
+
+            if(err != CL_SUCCESS)
+            {
+                lg::log("Error allocating buffer");
+                return;
+            }
+
+            write_all(write_on, data);
+        }
+
+        template<typename T>
+        void alloc_n(command_queue& write_on, const std::vector<T>& data)
+        {
+            if(data.size() == 0)
+                return;
+
+            alloc_n(write_on, &data[0], data.size());
+        }
+
+        void release()
+        {
+            clReleaseMemObject(cmem);
+        }
+
+        operator cl_mem() {return cmem;}
+    };
+
+    struct buffer_manager
+    {
+        std::map<buffer*, buffer*> buffers;
+
+        buffer* fetch(context& ctx, buffer* old)
+        {
+            if(old == nullptr)
+            {
+                buffer* buf = new buffer(ctx);
+
+                buffers[buf] = buf;
+
+                return buf;
+            }
+            else
+            {
+                return buffers[old];
+            }
+        }
     };
 
     //kernel load_kernel(context& ctx, program& p, const std::string& name);
@@ -222,6 +307,17 @@ void cl::args::push_back<cl::buffer>(cl::buffer& val)
     cl::arg_info inf;
     inf.ptr = &val.get();
     inf.size = sizeof(val.get());
+
+    arg_list.push_back(inf);
+}
+
+template<>
+inline
+void cl::args::push_back<cl::buffer*>(cl::buffer*& val)
+{
+    cl::arg_info inf;
+    inf.ptr = &val->get();
+    inf.size = sizeof(val->get());
 
     arg_list.push_back(inf);
 }
