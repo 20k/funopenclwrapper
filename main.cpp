@@ -29,19 +29,41 @@ int main()
 
     std::vector<int> data;
 
-    for(int i=0; i < 128; i++)
+    for(int i=0; i < 800*600; i++)
     {
         data.push_back(i);
     }
 
     buf->alloc(cqueue, data);
 
+    cl::cl_gl_interop_texture* interop = buffer_manage.fetch<cl::cl_gl_interop_texture>(ctx, nullptr, win.getSize().x, win.getSize().y);
+    interop->acquire(cqueue);
+
     cl::args none;
     none.push_back(buf);
+    none.push_back(interop);
 
     cqueue.exec(program, "test_kernel", none, {128}, {16});
 
     cqueue.block();
+
+    while(win.isOpen())
+    {
+        sf::Event event;
+
+        while(win.pollEvent(event))
+        {
+
+        }
+
+        cqueue.exec(program, "test_kernel", none, {800, 600}, {16, 16});
+        cqueue.block();
+
+        interop->gl_blit_me(0, cqueue);
+
+        win.display();
+        win.clear();
+    }
 
     return 0;
 }

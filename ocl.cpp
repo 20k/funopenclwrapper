@@ -356,7 +356,7 @@ void cl::cl_gl_interop_texture::gl_blit_raw(GLuint target, GLuint source)
     int dest_h = h;
 
     ///blit buffer to screen
-    glBlitFramebufferEXT(0 , 0, w, h, 0, 0, dest_w, dest_h, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebufferEXT(0, 0, w, h, 0, 0, dest_w, dest_h, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
 void cl::cl_gl_interop_texture::gl_blit_me(GLuint target, command_queue& cqueue)

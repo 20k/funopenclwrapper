@@ -161,6 +161,7 @@ namespace cl
             for(int i=0; i < dim; i++)
             {
                 l_ws[i] = local_ws[i];
+                g_ws[i] = global_ws[i];
 
                 if(l_ws[i] == 0)
                     continue;
@@ -349,6 +350,17 @@ void cl::args::push_back<cl::buffer>(cl::buffer& val)
 template<>
 inline
 void cl::args::push_back<cl::buffer*>(cl::buffer*& val)
+{
+    cl::arg_info inf;
+    inf.ptr = &val->get();
+    inf.size = sizeof(val->get());
+
+    arg_list.push_back(inf);
+}
+
+template<>
+inline
+void cl::args::push_back<cl::cl_gl_interop_texture*>(cl::cl_gl_interop_texture*& val)
 {
     cl::arg_info inf;
     inf.ptr = &val->get();
