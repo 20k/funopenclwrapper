@@ -39,15 +39,21 @@ namespace cl
 
         context();
 
+        void rebuild();
+
         cl_context& get(){return ccontext;}
     };
 
     struct program
     {
+        context& saved_context;
+        std::string saved_fname;
+
         cl_program cprogram;
         bool built = false;
-
         program(context& ctx, const std::string& fname);
+
+        void rebuild();
 
         cl_program& get()
         {
@@ -57,6 +63,13 @@ namespace cl
         cl_program get() const
         {
             return cprogram;
+        }
+
+        void operator=(const program& other)
+        {
+            cprogram = other.cprogram;
+            built = other.built;
+            saved_fname = other.saved_fname;
         }
 
         operator cl_program() {return cprogram;}
@@ -71,7 +84,7 @@ namespace cl
         cl_kernel ckernel;
         std::string name;
         bool loaded = false;
-        cl_uint work_size;
+        //cl_uint work_size;
 
         kernel(program& p, const std::string& kname);
 
@@ -199,7 +212,7 @@ namespace cl
         }
     };
 
-    kernel load_kernel(context& ctx, program& p, const std::string& name);
+    //kernel load_kernel(context& ctx, program& p, const std::string& name);
 }
 
 template<>

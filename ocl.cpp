@@ -198,7 +198,12 @@ cl::context::context()
     }
 }
 
-cl::program::program(context& ctx, const std::string& fname)
+void cl::context::rebuild()
+{
+    *this = cl::context();
+}
+
+cl::program::program(context& ctx, const std::string& fname) : saved_context(ctx), saved_fname(fname)
 {
     std::string src = read_file(fname);
 
@@ -206,6 +211,11 @@ cl::program::program(context& ctx, const std::string& fname)
     const char* ptr = src.c_str();
 
     cprogram = clCreateProgramWithSource(ctx.get(), 1, &ptr, &len, nullptr);
+}
+
+void cl::program::rebuild()
+{
+    *this = program(saved_context, saved_fname);
 }
 
 void cl::program::build_with(context& ctx, const std::string& options)
@@ -289,7 +299,7 @@ void cl::command_queue::unmap(buffer& v, void* ptr)
     clEnqueueUnmapMemObject(cqueue, v, ptr, 0, NULL, NULL);
 }
 
-cl::kernel cl::load_kernel(context& ctx, program& p, const std::string& name)
+/*cl::kernel cl::load_kernel(context& ctx, program& p, const std::string& name)
 {
     //program_ensure_built();
 
@@ -302,4 +312,4 @@ cl::kernel cl::load_kernel(context& ctx, program& p, const std::string& name)
     k.work_size = ret;
 
     return k;
-}
+}*/
