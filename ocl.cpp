@@ -232,7 +232,7 @@ void cl::program::rebuild()
 
 void cl::program::build_with(context& ctx, const std::string& options)
 {
-    std::string build_options = "-cl-fast-relaxed-math -cl-no-signed-zeros -cl-single-precision-constant -cl-denorms-are-zero" + options;
+    std::string build_options = "-cl-fast-relaxed-math -cl-no-signed-zeros -cl-single-precision-constant -cl-denorms-are-zero " + options;
 
     cl_int build_status = clBuildProgram(cprogram, 1, &ctx.selected_device, build_options.c_str(), nullptr, nullptr);
 
