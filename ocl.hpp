@@ -203,6 +203,21 @@ namespace cl
             return exec(*k, pack, global_ws, local_ws);
         }
 
+        template<typename T, int dim>
+        void exec(program& p, const std::string& kname, args& pack, const vec<dim, T>& global_ws, const vec<dim, T>& local_ws)
+        {
+            T g_ws[dim] = {0};
+            T l_ws[dim] = {0};
+
+            for(int i=0; i < dim; i++)
+            {
+                g_ws[i] = global_ws.v[i];
+                l_ws[i] = local_ws.v[i];
+            }
+
+            return exec(p, kname, pack, g_ws, l_ws);
+        }
+
         void block()
         {
             clFinish(cqueue);
