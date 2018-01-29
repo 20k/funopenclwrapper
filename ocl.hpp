@@ -345,7 +345,7 @@ namespace cl
         }
 
         template<typename T, int N>
-        void alloc_n_img(command_queue& write_on, const T* data, const vec<N, int>& dims)
+        void alloc_n_img(command_queue& write_on, const T* data, const vec<N, int>& dims, cl_channel_order channel_order = CL_RGBA, cl_channel_type channel_type = CL_FLOAT)
         {
             format = IMAGE;
             image_dimensionality = N;
@@ -368,8 +368,8 @@ namespace cl
             }
 
             cl_image_format format;
-            format.image_channel_order = CL_RGBA;
-            format.image_channel_data_type = CL_FLOAT;
+            format.image_channel_order = channel_order;
+            format.image_channel_data_type = channel_type;
 
             ///TODO: REMOVE THIS CHECK
             static_assert(N == 2);
@@ -387,7 +387,7 @@ namespace cl
         }
 
         template<typename T, int N>
-        void alloc_img(command_queue& write_on, const std::vector<T>& data, const vec<N, int>& dims)
+        void alloc_img(command_queue& write_on, const std::vector<T>& data, const vec<N, int>& dims, cl_channel_order channel_order = CL_RGBA, cl_channel_type channel_type = CL_FLOAT)
         {
             format = IMAGE;
 
@@ -399,7 +399,7 @@ namespace cl
                 std::cout << i << std::endl;
             }*/
 
-            alloc_n_img(write_on, &data[0], dims);
+            alloc_n_img(write_on, &data[0], dims, channel_order, channel_type);
         }
 
         void release()
