@@ -255,6 +255,23 @@ namespace cl
             return cmem;
         }
 
+        void clear_to_zero(command_queue& write_on)
+        {
+            cl_uint zeros[4] = {0};
+
+            if(format == BUFFER)
+            {
+                clEnqueueFillBuffer(write_on, cmem, &zeros[0], sizeof(cl_uchar), 0, alloc_size, 0, nullptr, nullptr);
+            }
+            else
+            {
+                size_t origin[3] = {0};
+
+                ///thanks ieee! might be the only time this was said non sarcastically
+                clEnqueueFillImage(write_on, cmem, &zeros[0], origin, image_dims, 0, nullptr, nullptr);
+            }
+        }
+
         void write_all(command_queue& write_on, const void* ptr)
         {
             cl_int val = CL_SUCCESS;
