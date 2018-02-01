@@ -181,7 +181,31 @@ namespace cl
                 }
             }
 
-            cl_int err = clEnqueueNDRangeKernel(cqueue, kname.get(), dim, nullptr, g_ws, l_ws, 0, nullptr, nullptr);
+            cl_int err = CL_SUCCESS;
+
+
+            #ifndef GPU_PROFILE
+            err = clEnqueueNDRangeKernel(cqueue, kname.get(), dim, nullptr, g_ws, l_ws, 0, nullptr, nullptr);
+            #else
+
+            cl_event event;
+            err = clEnqueueNDRangeKernel(cqueue, kname.get(), dim, nullptr, g_ws, l_ws, 0, nullptr, &event);
+
+            cl_ulong start;
+            cl_ulong finish;
+
+            block();
+
+            clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, nullptr);
+            clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &finish, nullptr);
+
+            cl_ulong diff = finish - start;
+
+            double ddiff = diff / 1000. / 1000.;
+
+            std::cout << "kernel " << kname.name << " ms " << ddiff << std::endl;
+
+            #endif // GPU_PROFILE
 
             if(err != CL_SUCCESS)
             {

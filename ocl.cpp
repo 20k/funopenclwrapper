@@ -282,7 +282,11 @@ cl::command_queue::command_queue(cl::context& ctx)
 {
     cl_int err;
 
+    #ifndef GPU_PROFILE
     cqueue = clCreateCommandQueue(ctx.get(), ctx.selected_device, 0, &err);
+    #else
+    cqueue = clCreateCommandQueue(ctx.get(), ctx.selected_device, CL_QUEUE_PROFILING_ENABLE, &err);
+    #endif
 
     if(err != CL_SUCCESS)
     {
