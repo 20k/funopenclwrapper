@@ -12,6 +12,7 @@
 #include <map>
 #include "logging.hpp"
 #include <vec/vec.hpp>
+#include <assert.h>
 
 namespace cl
 {
@@ -24,7 +25,8 @@ namespace cl
 
     struct event
     {
-        cl_event cevent;
+        cl_event cevent = nullptr;
+        bool invalid = true;
 
         bool finished()
         {
@@ -33,6 +35,22 @@ namespace cl
             clGetEventInfo(cevent, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
 
             return status == CL_COMPLETE;
+        }
+
+        bool bad() const
+        {
+            return invalid;
+        }
+    };
+
+    template<typename T>
+    struct read_event : event
+    {
+        std::vector<T> data;
+
+        void allocate_num(int s)
+        {
+            data.resize(s * sizeof(T));
         }
     };
 
@@ -46,10 +64,21 @@ namespace cl
 
         for(const event& e : events)
         {
+            if(e.bad())
+                continue;
+
             clevents.push_back(e.cevent);
         }
 
-        clWaitForEvents(clevents.size(), &clevents[0]);
+        if(clevents.size() == 0)
+            return;
+
+        cl_int ret = clWaitForEvents(clevents.size(), &clevents[0]);
+
+        if(ret != CL_SUCCESS)
+        {
+            std::cout << "Wait for events err " << ret << std::endl;
+        }
     }
 
     struct context
@@ -293,6 +322,7 @@ namespace cl
 
         size_t image_dims[3] = {1,1,1};
         int64_t image_dimensionality = 1;
+        int byte_per_pixel = 1;
 
         enum internal_format
         {
@@ -307,6 +337,45 @@ namespace cl
         cl_mem& get()
         {
             return cmem;
+        }
+
+        template<typename T>
+        read_event<T> async_read(command_queue& read_on, vec2i location, vec2i dim = {1, 1})
+        {
+            read_event<T> data;
+            data.allocate_num(dim.x() * dim.y());
+
+            ///TODO: WORK FOR BOTH
+            assert(format == IMAGE);
+
+            ///doesn't do a full invalid check yet with sizes
+            if(location.x() < 0 || location.x() >= image_dims[0] || location.y() < 0 || location.y() >= image_dims[1])
+            {
+                data.invalid = true;
+
+                return data;
+            }
+
+            if(format == IMAGE)
+            {
+                size_t origin[3] = {location.x(), location.y(), 0};
+                size_t region[3] = {dim.x(), dim.y(), 1};
+
+                cl_int ret = clEnqueueReadImage(read_on, cmem, CL_FALSE, origin, region, 0, 0, &data.data[0], 0, nullptr, &data.cevent);
+
+                if(ret != CL_SUCCESS)
+                {
+                    std::cout << "Error in async read " << ret << std::endl;
+
+                    data.invalid = true;
+                }
+                else
+                {
+                    data.invalid = false;
+                }
+            }
+
+            return data;
         }
 
         void clear_to_zero(command_queue& write_on)
