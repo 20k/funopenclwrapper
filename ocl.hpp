@@ -43,15 +43,29 @@ namespace cl
         }
     };
 
+    ///hmm. problem is, if we destroy a read event while reading...
+    ///then again, that's definitely bad code. But still, it might be better
+    ///for the read to go nowhere and leak (free eventually using callbacks? hmm? reclaim?)
+    ///rather than crash
     template<typename T>
     struct read_event : event
     {
-        std::vector<T> data;
+        std::vector<T>* data = nullptr;
 
         void allocate_num(int s)
         {
-            data.resize(s * sizeof(T));
+            data = new std::vector<T>();
+
+            data->resize(s * sizeof(T));
         }
+
+        void del()
+        {
+            if(data)
+                delete data;
+        }
+
+        const T& operator[](std::size_t idx) const {return (*data)[idx];}
     };
 
     inline
@@ -68,6 +82,33 @@ namespace cl
                 continue;
 
             clevents.push_back(e.cevent);
+        }
+
+        if(clevents.size() == 0)
+            return;
+
+        cl_int ret = clWaitForEvents(clevents.size(), &clevents[0]);
+
+        if(ret != CL_SUCCESS)
+        {
+            std::cout << "Wait for events err " << ret << std::endl;
+        }
+    }
+
+    inline
+    void wait_for(const std::vector<event*>& events)
+    {
+        if(events.size() == 0)
+            return;
+
+        std::vector<cl_event> clevents;
+
+        for(auto e : events)
+        {
+            if(e->bad())
+                continue;
+
+            clevents.push_back(e->cevent);
         }
 
         if(clevents.size() == 0)
@@ -361,7 +402,7 @@ namespace cl
                 size_t origin[3] = {location.x(), location.y(), 0};
                 size_t region[3] = {dim.x(), dim.y(), 1};
 
-                cl_int ret = clEnqueueReadImage(read_on, cmem, CL_FALSE, origin, region, 0, 0, &data.data[0], 0, nullptr, &data.cevent);
+                cl_int ret = clEnqueueReadImage(read_on, cmem, CL_FALSE, origin, region, 0, 0, &(*data.data)[0], 0, nullptr, &data.cevent);
 
                 if(ret != CL_SUCCESS)
                 {
