@@ -381,7 +381,7 @@ namespace cl
         }
 
         template<typename T>
-        read_event<T> async_read(command_queue& read_on, vec2i location, vec2i dim = {1, 1})
+        read_event<T> async_read(command_queue& read_on, vec2i location, vec2i dim = {1, 1}, bool invert = false)
         {
             read_event<T> data;
             data.allocate_num(dim.x() * dim.y());
@@ -399,6 +399,11 @@ namespace cl
 
             if(format == IMAGE)
             {
+                if(invert)
+                {
+                    location.y() = image_dims[1] - location.y();
+                }
+
                 size_t origin[3] = {location.x(), location.y(), 0};
                 size_t region[3] = {dim.x(), dim.y(), 1};
 
