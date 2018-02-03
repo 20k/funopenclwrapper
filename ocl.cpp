@@ -359,7 +359,38 @@ cl::cl_gl_interop_texture::cl_gl_interop_texture(context& ctx, int w, int h) : b
 
     renderbuffer_id = framebuf;
 
+    image_dims[0] = w;
+    image_dims[1] = h;
+    image_dims[2] = 1;
+
+    format = IMAGE;
+
     //compute::opengl_enqueue_acquire_gl_objects(1, &texture_gl.get(), cqueue);
+}
+
+cl::cl_gl_interop_texture::cl_gl_interop_texture(context& ctx, GLuint tex) : buffer(ctx)
+{
+    cl_int err;
+    cmem = clCreateFromGLTexture2D(ctx, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, tex, &err);
+
+    if(err != CL_SUCCESS)
+    {
+        lg::log("Failure in cl_gl_interop_texture constructor");
+    }
+
+    size_t fw, fh;
+
+    clGetImageInfo(cmem, CL_IMAGE_WIDTH, sizeof(size_t), &fw, nullptr);
+    clGetImageInfo(cmem, CL_IMAGE_WIDTH, sizeof(size_t), &fh, nullptr);
+
+    w = fw;
+    h = fh;
+
+    image_dims[0] = w;
+    image_dims[1] = h;
+    image_dims[2] = 1;
+
+    format = IMAGE;
 }
 
 void cl::cl_gl_interop_texture::gl_blit_raw(GLuint target, GLuint source)

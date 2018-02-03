@@ -636,6 +636,7 @@ namespace cl
     struct cl_gl_interop_texture : buffer
     {
         cl_gl_interop_texture(context& ctx, int w, int h);
+        cl_gl_interop_texture(context& ctx, GLuint texture);
 
         int w, h;
 
