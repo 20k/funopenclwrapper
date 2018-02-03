@@ -22,6 +22,36 @@ namespace cl
 
     cl_int get_platform_ids(cl_platform_id* clSelectedPlatformID);
 
+    struct event
+    {
+        cl_event cevent;
+
+        bool finished()
+        {
+            cl_int status;
+
+            clGetEventInfo(cevent, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
+
+            return status == CL_COMPLETE;
+        }
+    };
+
+    inline
+    void wait_for(const std::vector<event>& events)
+    {
+        if(events.size() == 0)
+            return;
+
+        std::vector<cl_event> clevents;
+
+        for(const event& e : events)
+        {
+            clevents.push_back(e.cevent);
+        }
+
+        clWaitForEvents(clevents.size(), &clevents[0]);
+    }
+
     struct context
     {
         cl_platform_id platform;
