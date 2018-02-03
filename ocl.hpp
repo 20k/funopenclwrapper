@@ -145,7 +145,7 @@ namespace cl
 
         cl_program cprogram;
         bool built = false;
-        program(context& ctx, const std::string& fname);
+        program(context& ctx, const std::string& fname, bool is_file = true);
 
         void rebuild();
 

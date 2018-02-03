@@ -209,15 +209,20 @@ bool file_exists(const std::string& file_name)
     return file.good();
 }
 
-cl::program::program(context& ctx, const std::string& fname) : saved_context(ctx), saved_fname(fname)
+cl::program::program(context& ctx, const std::string& fname, bool is_file) : saved_context(ctx), saved_fname(fname)
 {
-    if(!file_exists(fname))
+    if(is_file && !file_exists(fname))
     {
         lg::log("File", fname, "does not exist");
         exit(5);
     }
 
-    std::string src = read_file(fname);
+    std::string src;
+
+    if(is_file)
+        src = read_file(fname);
+    else
+        src = fname;
 
     size_t len = src.length();
     const char* ptr = src.c_str();
@@ -270,7 +275,7 @@ cl::kernel::kernel(program& p, const std::string& kname)
 
     if(err != CL_SUCCESS)
     {
-        lg::log("Invalid Kernel Name ", kname);
+        lg::log("Invalid Kernel Name ", kname, " err ", err);
     }
 
     name = kname;
