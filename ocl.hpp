@@ -18,8 +18,6 @@
 namespace cl
 {
     struct kernel;
-    extern std::map<std::string, kernel*> kernels;
-    static std::mutex kernel_lock;
 
     bool supports_extension(cl_device_id device, const std::string& ext_name);
 
@@ -168,6 +166,9 @@ namespace cl
         }
     }
 
+    struct program;
+    struct kernel;
+
     struct context
     {
         cl_platform_id platform;
@@ -177,6 +178,9 @@ namespace cl
 
         std::string device_name;
 
+        std::vector<program> programs;
+        std::map<std::string, kernel> kernels;
+
         context();
 
         void rebuild();
@@ -184,6 +188,8 @@ namespace cl
         cl_context& get(){return ccontext;}
 
         operator cl_context() {return ccontext;}
+
+        void register_program(program& p);
     };
 
     struct program
@@ -229,6 +235,8 @@ namespace cl
         //cl_uint work_size;
 
         kernel(program& p, const std::string& kname);
+        kernel(cl_kernel&);
+        kernel(){}
 
         cl_kernel& get(){return ckernel;}
     };
@@ -390,27 +398,22 @@ namespace cl
         }
 
         template<typename T, int dim>
-        void exec(program& p, const std::string& kname, args& pack, const T(&global_ws)[dim], const T(&local_ws)[dim], cl::event* evt = nullptr, std::vector<cl::event*> evts = std::vector<cl::event*>())
+        void exec(const std::string& kname, args& pack, const T(&global_ws)[dim], const T(&local_ws)[dim], cl::event* evt = nullptr, std::vector<cl::event*> evts = std::vector<cl::event*>())
         {
             ///needs to be made thread safe
-            auto it = kernels.find(kname);
+            auto it = ctx.kernels.find(kname);
 
-            if(it == kernels.end() || it->second == nullptr || !it->second->loaded)
+            if(it == ctx.kernels.end())
             {
-                std::lock_guard<std::mutex> guard(kernel_lock);
-
-                kernel* k = new kernel(p, kname);
-
-                kernels[kname] = k;
-
-                it = kernels.find(kname);
+                lg::log("Kernel with name ", kname, " not found");
+                return;
             }
 
-            return exec(*it->second, pack, global_ws, local_ws, evt, evts);
+            return exec(it->second, pack, global_ws, local_ws, evt, evts);
         }
 
         template<typename T, int dim>
-        void exec(program& p, const std::string& kname, args& pack, const vec<dim, T>& global_ws, const vec<dim, T>& local_ws, cl::event* evt = nullptr, std::vector<cl::event*> evts = std::vector<cl::event*>())
+        void exec(const std::string& kname, args& pack, const vec<dim, T>& global_ws, const vec<dim, T>& local_ws, cl::event* evt = nullptr, std::vector<cl::event*> evts = std::vector<cl::event*>())
         {
             T g_ws[dim] = {0};
             T l_ws[dim] = {0};
@@ -421,7 +424,7 @@ namespace cl
                 l_ws[i] = local_ws.v[i];
             }
 
-            return exec(p, kname, pack, g_ws, l_ws, evt, evts);
+            return exec(kname, pack, g_ws, l_ws, evt, evts);
         }
 
         void block()

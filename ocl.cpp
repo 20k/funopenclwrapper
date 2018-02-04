@@ -11,8 +11,6 @@
 #include <gl/glext.h>
 #include <assert.h>
 
-std::map<std::string, cl::kernel*> cl::kernels;
-
 inline
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
     std::stringstream ss(s);
@@ -204,6 +202,38 @@ cl::context::context()
     }
 }
 
+void cl::context::register_program(program& p)
+{
+    programs.push_back(p);
+
+    cl_uint num = 0;
+    cl_int err = clCreateKernelsInProgram(p, 0, nullptr, &num);
+
+    if(err != CL_SUCCESS)
+    {
+        lg::log("Error creating program ", err);
+        return;
+    }
+
+    std::vector<cl_kernel> cl_kernels;
+    cl_kernels.resize(num + 1);
+
+    clCreateKernelsInProgram(p, num, &cl_kernels[0], nullptr);
+
+    cl_kernels.resize(num);
+
+    for(cl_kernel& k : cl_kernels)
+    {
+        cl::kernel k1(k);
+
+        k1.name.resize(strlen(k1.name.c_str()));
+
+        lg::log("Registered ", k1.name);
+
+        kernels[k1.name] = k1;
+    }
+}
+
 void cl::context::rebuild()
 {
     *this = cl::context();
@@ -285,6 +315,26 @@ cl::kernel::kernel(program& p, const std::string& kname)
     }
 
     name = kname;
+
+    loaded = true;
+}
+
+cl::kernel::kernel(cl_kernel& k)
+{
+    ckernel = k;
+
+    size_t ret = 0;
+
+    cl_int err = clGetKernelInfo(k, CL_KERNEL_FUNCTION_NAME, 0, nullptr, &ret);
+
+    if(err != CL_SUCCESS)
+    {
+        lg::log("Invalid kernel create from cl kernel, err ", err);
+    }
+
+    name.resize(ret + 1);
+
+    clGetKernelInfo(k, CL_KERNEL_FUNCTION_NAME, name.length(), &name[0], nullptr);
 
     loaded = true;
 }
