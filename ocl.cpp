@@ -173,6 +173,12 @@ cl::context::context()
 
     selected_device = devices[0];
 
+    char dname[1000] = {0};
+
+    clGetDeviceInfo(selected_device, CL_DEVICE_NAME, 999, &dname[0], nullptr);
+
+    device_name = dname;
+
     ///this is essentially black magic
     cl_context_properties props[] =
     {

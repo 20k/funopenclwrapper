@@ -129,6 +129,8 @@ namespace cl
         cl_device_id selected_device;
         cl_context ccontext;
 
+        std::string device_name;
+
         context();
 
         void rebuild();
