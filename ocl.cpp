@@ -289,7 +289,7 @@ cl::kernel::kernel(program& p, const std::string& kname)
     loaded = true;
 }
 
-cl::command_queue::command_queue(cl::context& ctx)
+cl::command_queue::command_queue(cl::context& ctx) : ctx(ctx)
 {
     cl_int err;
 

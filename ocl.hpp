@@ -272,6 +272,7 @@ namespace cl
     struct command_queue
     {
         cl_command_queue cqueue;
+        context& ctx;
 
         command_queue(context& ctx);
 
