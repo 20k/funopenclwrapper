@@ -41,6 +41,15 @@ namespace cl
         {
             return invalid;
         }
+
+        template<typename T, typename U>
+        void set_completion_callback(T t, const U& data)
+        {
+            if(bad())
+                return;
+
+            cl_int ret = clSetEventCallback(cevent, CL_COMPLETE, t, (void*)data);
+        }
     };
 
     ///hmm. problem is, if we destroy a read event while reading...
@@ -56,7 +65,7 @@ namespace cl
         {
             data = new std::vector<T>();
 
-            data->resize(s * sizeof(T));
+            data->resize(s);
         }
 
         void del()
@@ -66,6 +75,25 @@ namespace cl
         }
 
         const T& operator[](std::size_t idx) const {return (*data)[idx];}
+    };
+
+    template<typename T>
+    struct write_event : event
+    {
+        std::vector<T>* data = nullptr;
+
+        void allocate_with(const std::vector<T>& dat)
+        {
+            data = new std::vector<T>();
+
+            *data = dat;
+        }
+
+        void del()
+        {
+            if(data)
+                delete data;
+        }
     };
 
     inline
@@ -251,7 +279,7 @@ namespace cl
 
         ///make this finally non stupid
         template<typename T, int dim>
-        void exec(kernel& kname, args& pack, const T(&global_ws)[dim], const T(&local_ws)[dim])
+        void exec(kernel& kname, args& pack, const T(&global_ws)[dim], const T(&local_ws)[dim], cl::event* evt = nullptr, std::vector<cl::event*> evts = std::vector<cl::event*>())
         {
             for(int i=0; i < (int)pack.arg_list.size(); i++)
             {
@@ -285,21 +313,42 @@ namespace cl
 
             cl_int err = CL_SUCCESS;
 
+            std::vector<cl_event> events;
+
+            for(cl::event* e : evts)
+            {
+                if(!e->bad())
+                    events.push_back(e->cevent);
+            }
+
+            cl_event* out = nullptr;
+
+            cl_event* first = nullptr;
+
+            if(events.size() > 0)
+                first = &events[0];
+
+            if(evt != nullptr)
+                out = &evt->cevent;
 
             #ifndef GPU_PROFILE
-            err = clEnqueueNDRangeKernel(cqueue, kname.get(), dim, nullptr, g_ws, l_ws, 0, nullptr, nullptr);
+                err = clEnqueueNDRangeKernel(cqueue, kname.get(), dim, nullptr, g_ws, l_ws, events.size(), first, out);
             #else
 
-            cl_event event;
-            err = clEnqueueNDRangeKernel(cqueue, kname.get(), dim, nullptr, g_ws, l_ws, 0, nullptr, &event);
+            cl_event local;
+
+            if(out == nullptr)
+                out = &local;
+
+            err = clEnqueueNDRangeKernel(cqueue, kname.get(), dim, nullptr, g_ws, l_ws, 0, nullptr, out);
 
             cl_ulong start;
             cl_ulong finish;
 
             block();
 
-            clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, nullptr);
-            clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &finish, nullptr);
+            clGetEventProfilingInfo(*out, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, nullptr);
+            clGetEventProfilingInfo(*out, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &finish, nullptr);
 
             cl_ulong diff = finish - start;
 
@@ -314,11 +363,17 @@ namespace cl
                 lg::log("clEnqueueNDRangeKernel Error with", kname.name);
                 lg::log(err);
             }
+            else
+            {
+                if(evt != nullptr)
+                    evt->invalid = false;
+            }
         }
 
         template<typename T, int dim>
-        void exec(program& p, const std::string& kname, args& pack, const T(&global_ws)[dim], const T(&local_ws)[dim])
+        void exec(program& p, const std::string& kname, args& pack, const T(&global_ws)[dim], const T(&local_ws)[dim], cl::event* evt = nullptr, std::vector<cl::event*> evts = std::vector<cl::event*>())
         {
+            ///needs to be made thread safe
             kernel*& k = kernels[kname];
 
             if(k == nullptr || !k->loaded)
@@ -326,11 +381,11 @@ namespace cl
                 k = new kernel(p, kname);
             }
 
-            return exec(*k, pack, global_ws, local_ws);
+            return exec(*k, pack, global_ws, local_ws, evt, evts);
         }
 
         template<typename T, int dim>
-        void exec(program& p, const std::string& kname, args& pack, const vec<dim, T>& global_ws, const vec<dim, T>& local_ws)
+        void exec(program& p, const std::string& kname, args& pack, const vec<dim, T>& global_ws, const vec<dim, T>& local_ws, cl::event* evt = nullptr, std::vector<cl::event*> evts = std::vector<cl::event*>())
         {
             T g_ws[dim] = {0};
             T l_ws[dim] = {0};
@@ -341,7 +396,7 @@ namespace cl
                 l_ws[i] = local_ws.v[i];
             }
 
-            return exec(p, kname, pack, g_ws, l_ws);
+            return exec(p, kname, pack, g_ws, l_ws, evt, evts);
         }
 
         void block()
@@ -383,13 +438,50 @@ namespace cl
         }
 
         template<typename T>
-        read_event<T> async_read(command_queue& read_on, vec2i location, vec2i dim = {1, 1}, bool invert = false)
+        read_event<T> async_read(command_queue& read_on, vec2i location, vec2i dim = {1, 1}, bool invert = false, std::vector<cl::event*> dependents = std::vector<cl::event*>())
         {
             read_event<T> data;
-            data.allocate_num(dim.x() * dim.y());
 
             ///TODO: WORK FOR BOTH
-            assert(format == IMAGE);
+            //assert(format == IMAGE);
+
+            if(format == BUFFER)
+            {
+                if(location.x() < 0 || location.x() >= alloc_size)
+                    return data;
+
+                data.allocate_num(dim.x());
+
+                std::vector<cl_event> cl_events;
+
+                for(cl::event* e : dependents)
+                {
+                    if(e->bad())
+                        continue;
+
+                    cl_events.push_back(e->cevent);
+                }
+
+                cl_event* first = nullptr;
+
+                if(cl_events.size() > 0)
+                    first = &cl_events[0];
+
+                cl_int ret = clEnqueueReadBuffer(read_on, cmem, CL_FALSE, location.x(), dim.x() * sizeof(T), &(*data.data)[0], cl_events.size(), first, &data.cevent);
+
+                if(ret != CL_SUCCESS)
+                {
+                    std::cout << "Error in async buffer read " << ret << std::endl;
+
+                    data.invalid = true;
+                }
+                else
+                {
+                    data.invalid = false;
+                }
+
+                return data;
+            }
 
             ///doesn't do a full invalid check yet with sizes
             if(location.x() < 0 || location.x() >= image_dims[0] || location.y() < 0 || location.y() >= image_dims[1])
@@ -401,6 +493,8 @@ namespace cl
 
             if(format == IMAGE)
             {
+                data.allocate_num(dim.x() * dim.y());
+
                 if(invert)
                 {
                     location.y() = image_dims[1] - location.y();
@@ -414,6 +508,43 @@ namespace cl
                 if(ret != CL_SUCCESS)
                 {
                     std::cout << "Error in async read " << ret << std::endl;
+
+                    data.invalid = true;
+                }
+                else
+                {
+                    data.invalid = false;
+                }
+
+                return data;
+            }
+
+            return data;
+        }
+
+        ///for 2d writes.. double template me?
+        template<typename T>
+        write_event<T> async_write(command_queue& write_on, const std::vector<T>& in_dat, vec2i location = {0,0}, bool invert = false)
+        {
+            write_event<T> data;
+
+            if(in_dat.size() == 0)
+                return data;
+
+            assert(format == BUFFER);
+
+            if(location.x() < 0 || location.y() < 0)
+                return data;
+
+            data.allocate_with(in_dat);
+
+            if(format == BUFFER)
+            {
+                cl_int ret = clEnqueueWriteBuffer(write_on, cmem, CL_FALSE, location.x(), in_dat.size() * sizeof(T), &data.data[0], 0, nullptr, &data.cevent);
+
+                if(ret != CL_SUCCESS)
+                {
+                    std::cout << "Error in async write " << ret << std::endl;
 
                     data.invalid = true;
                 }
@@ -517,12 +648,9 @@ namespace cl
             return ret;
         }
 
-        template<typename T>
-        void alloc_n(command_queue& write_on, const T* data, int num)
+        void alloc_bytes(int bytes)
         {
-            format = BUFFER;
-
-            alloc_size = sizeof(T) * num;
+            alloc_size = bytes;
 
             cl_int err;
             cmem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, alloc_size, nullptr, &err);
@@ -532,6 +660,16 @@ namespace cl
                 lg::log("Error allocating buffer");
                 return;
             }
+        }
+
+        template<typename T>
+        void alloc_n(command_queue& write_on, const T* data, int num)
+        {
+            format = BUFFER;
+
+            alloc_size = sizeof(T) * num;
+
+            alloc_bytes(alloc_size);
 
             write_all(write_on, data);
         }
