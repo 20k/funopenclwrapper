@@ -74,6 +74,14 @@ namespace cl
                 delete data;
         }
 
+        T* front_ptr()
+        {
+            if(data == nullptr)
+                return nullptr;
+
+            return &(*data)[0];
+        }
+
         const T& operator[](std::size_t idx) const {return (*data)[idx];}
     };
 
@@ -93,6 +101,14 @@ namespace cl
         {
             if(data)
                 delete data;
+        }
+
+        T* front_ptr()
+        {
+            if(data == nullptr)
+                return nullptr;
+
+            return &(*data)[0];
         }
     };
 
@@ -540,7 +556,9 @@ namespace cl
 
             if(format == BUFFER)
             {
-                cl_int ret = clEnqueueWriteBuffer(write_on, cmem, CL_FALSE, location.x(), in_dat.size() * sizeof(T), &data.data[0], 0, nullptr, &data.cevent);
+                assert(location.x() * in_dat.size() * sizeof(T) < alloc_size);
+
+                cl_int ret = clEnqueueWriteBuffer(write_on, cmem, CL_FALSE, location.x(), in_dat.size() * sizeof(T), data.front_ptr(), 0, nullptr, &data.cevent);
 
                 if(ret != CL_SUCCESS)
                 {
