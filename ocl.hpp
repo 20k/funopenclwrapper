@@ -13,11 +13,13 @@
 #include "logging.hpp"
 #include <vec/vec.hpp>
 #include <assert.h>
+#include <mutex>
 
 namespace cl
 {
     struct kernel;
     extern std::map<std::string, kernel*> kernels;
+    static std::mutex kernel_lock;
 
     bool supports_extension(cl_device_id device, const std::string& ext_name);
 
@@ -390,14 +392,20 @@ namespace cl
         void exec(program& p, const std::string& kname, args& pack, const T(&global_ws)[dim], const T(&local_ws)[dim], cl::event* evt = nullptr, std::vector<cl::event*> evts = std::vector<cl::event*>())
         {
             ///needs to be made thread safe
-            kernel*& k = kernels[kname];
+            auto it = kernels.find(kname);
 
-            if(k == nullptr || !k->loaded)
+            if(it == kernels.end() || it->second == nullptr || !it->second->loaded)
             {
-                k = new kernel(p, kname);
+                std::lock_guard<std::mutex> guard(kernel_lock);
+
+                kernel* k = new kernel(p, kname);
+
+                kernels[kname] = k;
+
+                it = kernels.find(kname);
             }
 
-            return exec(*k, pack, global_ws, local_ws, evt, evts);
+            return exec(*it->second, pack, global_ws, local_ws, evt, evts);
         }
 
         template<typename T, int dim>
