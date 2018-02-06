@@ -378,8 +378,16 @@ void cl::command_queue::unmap(buffer& v, void* ptr)
     clEnqueueUnmapMemObject(cqueue, v, ptr, 0, NULL, NULL);
 }
 
-cl::cl_gl_interop_texture::cl_gl_interop_texture(context& ctx, int w, int h) : buffer(ctx), w(w), h(h)
+cl::cl_gl_interop_texture::cl_gl_interop_texture(context& ctx) : buffer(ctx)
 {
+    format = IMAGE;
+}
+
+void cl::cl_gl_interop_texture::create_renderbuffer(int pw, int ph)
+{
+    w = pw;
+    h = ph;
+
     PFNGLGENFRAMEBUFFERSEXTPROC glGenFramebuffersEXT = (PFNGLGENFRAMEBUFFERSEXTPROC)wglGetProcAddress("glGenFramebuffersEXT");
     PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC)wglGetProcAddress("glBindFramebufferEXT");
     PFNGLGENRENDERBUFFERSEXTPROC glGenRenderbuffersEXT = (PFNGLGENRENDERBUFFERSEXTPROC)wglGetProcAddress("glGenRenderbuffersEXT");
@@ -410,7 +418,7 @@ cl::cl_gl_interop_texture::cl_gl_interop_texture(context& ctx, int w, int h) : b
 
     if(err != CL_SUCCESS)
     {
-        lg::log("Failure in cl_gl_interop_texture constructor");
+        lg::log("Failure in cl_gl_interop_texture");
     }
 
     renderbuffer_id = framebuf;
@@ -418,20 +426,43 @@ cl::cl_gl_interop_texture::cl_gl_interop_texture(context& ctx, int w, int h) : b
     image_dims[0] = w;
     image_dims[1] = h;
     image_dims[2] = 1;
-
-    format = IMAGE;
-
-    //compute::opengl_enqueue_acquire_gl_objects(1, &texture_gl.get(), cqueue);
 }
 
-cl::cl_gl_interop_texture::cl_gl_interop_texture(context& ctx, GLuint tex) : buffer(ctx)
+void cl::cl_gl_interop_texture::create_from_renderbuffer(GLuint renderbuf)
+{
+    cl_int err;
+    cmem = clCreateFromGLRenderbuffer(ctx, CL_MEM_READ_WRITE, renderbuf, &err);
+
+    if(err != CL_SUCCESS)
+    {
+        lg::log("Failure in cl_gl_interop_texture rbuf ", err);
+    }
+
+    size_t fw, fh;
+
+    clGetImageInfo(cmem, CL_IMAGE_WIDTH, sizeof(size_t), &fw, nullptr);
+    clGetImageInfo(cmem, CL_IMAGE_WIDTH, sizeof(size_t), &fh, nullptr);
+
+    w = fw;
+    h = fh;
+
+    renderbuffer_id = renderbuf;
+
+    image_dims[0] = w;
+    image_dims[1] = h;
+    image_dims[2] = 1;
+
+    format = IMAGE;
+}
+
+void cl::cl_gl_interop_texture::create_from_texture(GLuint tex)
 {
     cl_int err;
     cmem = clCreateFromGLTexture2D(ctx, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, tex, &err);
 
     if(err != CL_SUCCESS)
     {
-        lg::log("Failure in cl_gl_interop_texture constructor");
+        lg::log("Failure in cl_gl_interop_texture");
     }
 
     size_t fw, fh;

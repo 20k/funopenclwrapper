@@ -805,8 +805,11 @@ namespace cl
 
     struct cl_gl_interop_texture : buffer
     {
-        cl_gl_interop_texture(context& ctx, int w, int h);
-        cl_gl_interop_texture(context& ctx, GLuint texture);
+        cl_gl_interop_texture(context& ctx);
+
+        void create_from_renderbuffer(GLuint renderbuf);
+        void create_renderbuffer(int w, int h);
+        void create_from_texture(GLuint tex);
 
         int w, h;
 
