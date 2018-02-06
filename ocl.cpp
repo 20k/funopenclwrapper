@@ -393,7 +393,7 @@ cl::cl_gl_interop_texture::cl_gl_interop_texture(context& ctx, int w, int h) : b
     glBindRenderbufferEXT(GL_RENDERBUFFER, screen_id);
 
     ///generate storage for renderbuffer
-    glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_RGBA16, w, h);
+    glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_RGBA16F, w, h);
 
     GLuint framebuf;
 
@@ -475,7 +475,7 @@ void cl::cl_gl_interop_texture::gl_blit_me(GLuint target, command_queue& cqueue)
 
     gl_blit_raw(target, renderbuffer_id);
 
-    acquire(cqueue);
+    //acquire(cqueue);
 }
 
 void cl::cl_gl_interop_texture::acquire(command_queue& cqueue)
