@@ -14,6 +14,7 @@
 #include <vec/vec.hpp>
 #include <assert.h>
 #include <mutex>
+#include <memory>
 
 namespace cl
 {
@@ -803,19 +804,71 @@ namespace cl
         }
     };
 
+    struct cl_gl_storage_base
+    {
+        virtual void allocate_storage(){}
+        virtual void deallocate_storage(){}
+
+        virtual cl::cl_gl_storage_base* shallow_clone() const
+        {
+            return nullptr;
+        }
+
+        template<typename T>
+        T* fetch_storage_as()
+        {
+            return (T*)fetch();
+        }
+
+    private:
+        virtual void* fetch()
+        {
+
+        }
+    };
+
+    template<typename T>
+    struct cl_gl_storage : cl_gl_storage_base
+    {
+        T* storage = nullptr;
+
+        cl_gl_storage()
+        {
+            storage = new T();
+        }
+
+        cl::cl_gl_storage_base* shallow_clone() const override
+        {
+            cl_gl_storage<T>* n = new cl_gl_storage<T>();
+            n->storage = storage;
+            return n;
+        }
+
+        void allocate_storage() override {storage = new T();}
+        void deallocate_storage() override {if(storage){delete storage;} storage = nullptr;}
+
+    private:
+        void* fetch() override
+        {
+            return (void*)storage;
+        }
+    };
+
     struct cl_gl_interop_texture : buffer
     {
         cl_gl_interop_texture(context& ctx);
 
         void create_from_renderbuffer(GLuint renderbuf);
         void create_renderbuffer(int w, int h);
-        void create_from_texture(GLuint tex);
+        void create_from_texture(GLuint tex, const cl_gl_storage_base& storage);
 
         int w, h;
 
         bool acquired = false;
 
         GLuint renderbuffer_id;
+
+        cl_gl_storage_base* storage = nullptr;
 
         void gl_blit_raw(GLuint target, GLuint source);
         void gl_blit_me(GLuint target, command_queue& cqueue);

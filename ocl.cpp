@@ -455,7 +455,7 @@ void cl::cl_gl_interop_texture::create_from_renderbuffer(GLuint renderbuf)
     format = IMAGE;
 }
 
-void cl::cl_gl_interop_texture::create_from_texture(GLuint tex)
+void cl::cl_gl_interop_texture::create_from_texture(GLuint tex, const cl::cl_gl_storage_base& storage_)
 {
     cl_int err;
     cmem = clCreateFromGLTexture2D(ctx, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, tex, &err);
@@ -472,6 +472,10 @@ void cl::cl_gl_interop_texture::create_from_texture(GLuint tex)
 
     w = fw;
     h = fh;
+
+    //storage = std::move(storage_);
+
+    storage = storage_.shallow_clone();
 
     image_dims[0] = w;
     image_dims[1] = h;
