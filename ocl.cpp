@@ -87,6 +87,7 @@ cl_int cl::get_platform_ids(cl_platform_id* clSelectedPlatformID)
 
             ciErrNum = clGetPlatformIDs(num_platforms, clPlatformIDs, NULL);
             lg::log("Available platforms:");
+            lg::log("Num platforms: ", num_platforms);
 
             for(i = 0; i < num_platforms; ++i)
             {
@@ -100,7 +101,7 @@ cl_int cl::get_platform_ids(cl_platform_id* clSelectedPlatformID)
                     {
                         lg::log("selected platform ", i);
                         *clSelectedPlatformID = clPlatformIDs[i];
-                        break;
+                        //break;
                     }
                 }
             }

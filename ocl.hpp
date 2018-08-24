@@ -823,7 +823,7 @@ namespace cl
     private:
         virtual void* fetch()
         {
-
+            throw;
         }
     };
 
