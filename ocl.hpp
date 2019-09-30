@@ -1,10 +1,6 @@
 #ifndef OCL_HPP_INCLUDED
 #define OCL_HPP_INCLUDED
 
-#include <gl/glew.h>
-#include <windows.h>
-#include <gl/gl.h>
-#include <gl/glext.h>
 #include <cl/cl.h>
 #include <string>
 #include <vector>
@@ -15,6 +11,8 @@
 #include <assert.h>
 #include <mutex>
 #include <memory>
+
+using gl_texid = unsigned int;
 
 namespace cl
 {
@@ -858,20 +856,20 @@ namespace cl
     {
         cl_gl_interop_texture(context& ctx);
 
-        void create_from_renderbuffer(GLuint renderbuf);
+        void create_from_renderbuffer(gl_texid renderbuf);
         void create_renderbuffer(int w, int h);
-        void create_from_texture(GLuint tex, const cl_gl_storage_base& storage);
+        void create_from_texture(gl_texid tex, const cl_gl_storage_base& storage);
 
         int w, h;
 
         bool acquired = false;
 
-        GLuint renderbuffer_id;
+        gl_texid renderbuffer_id;
 
         cl_gl_storage_base* storage = nullptr;
 
-        void gl_blit_raw(GLuint target, GLuint source);
-        void gl_blit_me(GLuint target, command_queue& cqueue);
+        void gl_blit_raw(gl_texid target, gl_texid source);
+        void gl_blit_me(gl_texid target, command_queue& cqueue);
 
         ///to opencl
         void acquire(command_queue& cqueue);

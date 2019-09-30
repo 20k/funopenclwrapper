@@ -3,7 +3,6 @@
 #include "logging.hpp"
 #include <cstring>
 #include <cl/cl_gl.h>
-#include <gl/glew.h>
 
 #include <windows.h>
 
@@ -429,7 +428,7 @@ void cl::cl_gl_interop_texture::create_renderbuffer(int pw, int ph)
     image_dims[2] = 1;
 }
 
-void cl::cl_gl_interop_texture::create_from_renderbuffer(GLuint renderbuf)
+void cl::cl_gl_interop_texture::create_from_renderbuffer(gl_texid renderbuf)
 {
     cl_int err;
     cmem = clCreateFromGLRenderbuffer(ctx, CL_MEM_READ_WRITE, renderbuf, &err);
@@ -456,7 +455,7 @@ void cl::cl_gl_interop_texture::create_from_renderbuffer(GLuint renderbuf)
     format = IMAGE;
 }
 
-void cl::cl_gl_interop_texture::create_from_texture(GLuint tex, const cl::cl_gl_storage_base& storage_)
+void cl::cl_gl_interop_texture::create_from_texture(gl_texid tex, const cl::cl_gl_storage_base& storage_)
 {
     cl_int err;
     cmem = clCreateFromGLTexture2D(ctx, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, tex, &err);
@@ -485,7 +484,7 @@ void cl::cl_gl_interop_texture::create_from_texture(GLuint tex, const cl::cl_gl_
     format = IMAGE;
 }
 
-void cl::cl_gl_interop_texture::gl_blit_raw(GLuint target, GLuint source)
+void cl::cl_gl_interop_texture::gl_blit_raw(gl_texid target, gl_texid source)
 {
     PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC)wglGetProcAddress("glBindFramebufferEXT");
 
@@ -505,7 +504,7 @@ void cl::cl_gl_interop_texture::gl_blit_raw(GLuint target, GLuint source)
     glBlitFramebufferEXT(0, 0, w, h, 0, 0, dest_w, dest_h, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
-void cl::cl_gl_interop_texture::gl_blit_me(GLuint target, command_queue& cqueue)
+void cl::cl_gl_interop_texture::gl_blit_me(gl_texid target, command_queue& cqueue)
 {
     unacquire(cqueue);
 
