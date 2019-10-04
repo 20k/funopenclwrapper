@@ -772,6 +772,23 @@ namespace cl
             alloc_n_img(write_on, &data[0], dims, channel_order, channel_type);
         }
 
+        void resize(command_queue& cqueue, int64_t next)
+        {
+            cl_mem old_mem = cmem;
+            int transfer_size = std::min(next, alloc_size);
+
+            alloc_bytes(next);
+
+            clEnqueueCopyBuffer(cqueue.cqueue, old_mem, cmem, 0, 0, transfer_size, 0, nullptr, nullptr);
+
+            clReleaseMemObject(old_mem);
+        }
+
+        int64_t size()
+        {
+            return alloc_size;
+        }
+
         void release()
         {
             clReleaseMemObject(cmem);
