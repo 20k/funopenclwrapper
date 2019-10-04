@@ -589,7 +589,7 @@ namespace cl
 
             if(format == BUFFER)
             {
-                assert(location.x() * in_dat.size() * sizeof(T) < alloc_size);
+                assert(location.x() * sizeof(T) + in_dat.size() * sizeof(T) <= alloc_size);
 
                 cl_int ret = clEnqueueWriteBuffer(write_on, cmem, CL_FALSE, location.x() * sizeof(T), in_dat.size() * sizeof(T), data.front_ptr(), 0, nullptr, &data.cevent);
 
