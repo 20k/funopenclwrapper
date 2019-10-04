@@ -428,6 +428,43 @@ void cl::cl_gl_interop_texture::create_renderbuffer(int pw, int ph)
     image_dims[2] = 1;
 }
 
+void cl::cl_gl_interop_texture::create_rendertexture(int pw, int ph)
+{
+    w = pw;
+    h = ph;
+
+    PFNGLGENFRAMEBUFFERSEXTPROC glGenFramebuffersEXT = (PFNGLGENFRAMEBUFFERSEXTPROC)wglGetProcAddress("glGenFramebuffersEXT");
+    PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC)wglGetProcAddress("glBindFramebufferEXT");
+    PFNGLGENRENDERBUFFERSEXTPROC glGenRenderbuffersEXT = (PFNGLGENRENDERBUFFERSEXTPROC)wglGetProcAddress("glGenRenderbuffersEXT");
+    PFNGLBINDRENDERBUFFEREXTPROC glBindRenderbufferEXT = (PFNGLBINDRENDERBUFFEREXTPROC)wglGetProcAddress("glBindRenderbufferEXT");
+    PFNGLRENDERBUFFERSTORAGEEXTPROC glRenderbufferStorageEXT = (PFNGLRENDERBUFFERSTORAGEEXTPROC)wglGetProcAddress("glRenderbufferStorageEXT");
+    PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC glFramebufferRenderbufferEXT = (PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC)wglGetProcAddress("glFramebufferRenderbufferEXT");
+
+    GLuint fbo;
+    glGenFramebuffersEXT(1, &fbo);
+    glBindFramebufferEXT(GL_FRAMEBUFFER, fbo);
+
+    glGenTextures(1, &texture_id);
+    glBindTexture(GL_TEXTURE_2D, texture_id);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    cl_int err;
+    cmem = clCreateFromGLTexture(ctx, CL_MEM_READ_WRITE, GL_TEXTURE_2D, 0, texture_id, &err);
+
+    if(err != CL_SUCCESS)
+    {
+        lg::log("Failure in create rendertexture ", err);
+    }
+
+    image_dims[0] = w;
+    image_dims[1] = h;
+    image_dims[2] = 1;
+}
+
 void cl::cl_gl_interop_texture::create_from_renderbuffer(gl_texid renderbuf)
 {
     cl_int err;
@@ -441,7 +478,7 @@ void cl::cl_gl_interop_texture::create_from_renderbuffer(gl_texid renderbuf)
     size_t fw, fh;
 
     clGetImageInfo(cmem, CL_IMAGE_WIDTH, sizeof(size_t), &fw, nullptr);
-    clGetImageInfo(cmem, CL_IMAGE_WIDTH, sizeof(size_t), &fh, nullptr);
+    clGetImageInfo(cmem, CL_IMAGE_HEIGHT, sizeof(size_t), &fh, nullptr);
 
     w = fw;
     h = fh;
@@ -468,7 +505,7 @@ void cl::cl_gl_interop_texture::create_from_texture(gl_texid tex, const cl::cl_g
     size_t fw, fh;
 
     clGetImageInfo(cmem, CL_IMAGE_WIDTH, sizeof(size_t), &fw, nullptr);
-    clGetImageInfo(cmem, CL_IMAGE_WIDTH, sizeof(size_t), &fh, nullptr);
+    clGetImageInfo(cmem, CL_IMAGE_HEIGHT, sizeof(size_t), &fh, nullptr);
 
     w = fw;
     h = fh;
@@ -495,7 +532,7 @@ void cl::cl_gl_interop_texture::gl_blit_raw(gl_texid target, gl_texid source)
 
     glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, target);
 
-    glDrawBuffer(GL_BACK);
+    glDrawBuffer(GL_FRONT);
 
     int dest_w = w;
     int dest_h = h;

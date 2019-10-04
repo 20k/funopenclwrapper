@@ -858,6 +858,7 @@ namespace cl
 
         void create_from_renderbuffer(gl_texid renderbuf);
         void create_renderbuffer(int w, int h);
+        void create_rendertexture(int w, int h);
         void create_from_texture(gl_texid tex, const cl_gl_storage_base& storage);
 
         int w, h;
@@ -865,6 +866,7 @@ namespace cl
         bool acquired = false;
 
         gl_texid renderbuffer_id;
+        gl_texid texture_id;
 
         cl_gl_storage_base* storage = nullptr;
 
