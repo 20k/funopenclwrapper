@@ -49,6 +49,14 @@ namespace cl
 
             cl_int ret = clSetEventCallback(cevent, CL_COMPLETE, t, (void*)data);
         }
+
+        void block()
+        {
+            if(bad())
+                return;
+
+            clWaitForEvents(1, &cevent);
+        }
     };
 
     ///hmm. problem is, if we destroy a read event while reading...
@@ -100,6 +108,8 @@ namespace cl
         {
             if(data)
                 delete data;
+
+            data = nullptr;
         }
 
         T* front_ptr()
@@ -108,6 +118,18 @@ namespace cl
                 return nullptr;
 
             return &(*data)[0];
+        }
+
+        void auto_cleanup()
+        {
+            assert(data);
+
+            set_completion_callback([](cl_event, cl_int, void* in)
+            {
+                std::vector<T>* rptr = (std::vector<T>*)in;
+
+                delete rptr;
+            }, data);
         }
     };
 
@@ -569,7 +591,7 @@ namespace cl
             {
                 assert(location.x() * in_dat.size() * sizeof(T) < alloc_size);
 
-                cl_int ret = clEnqueueWriteBuffer(write_on, cmem, CL_FALSE, location.x(), in_dat.size() * sizeof(T), data.front_ptr(), 0, nullptr, &data.cevent);
+                cl_int ret = clEnqueueWriteBuffer(write_on, cmem, CL_FALSE, location.x() * sizeof(T), in_dat.size() * sizeof(T), data.front_ptr(), 0, nullptr, &data.cevent);
 
                 if(ret != CL_SUCCESS)
                 {
