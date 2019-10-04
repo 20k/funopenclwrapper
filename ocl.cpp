@@ -418,7 +418,7 @@ void cl::cl_gl_interop_texture::create_renderbuffer(int pw, int ph)
 
     if(err != CL_SUCCESS)
     {
-        lg::log("Failure in cl_gl_interop_texture");
+        lg::log("Failure in cl_gl_interop_texture ", err);
     }
 
     renderbuffer_id = framebuf;
@@ -462,7 +462,7 @@ void cl::cl_gl_interop_texture::create_from_texture(gl_texid tex, const cl::cl_g
 
     if(err != CL_SUCCESS)
     {
-        lg::log("Failure in cl_gl_interop_texture");
+        lg::log("Failure in cl_gl_interop_texture cft ", err);
     }
 
     size_t fw, fh;
