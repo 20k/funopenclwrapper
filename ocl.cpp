@@ -339,14 +339,19 @@ cl::kernel::kernel(cl_kernel& k)
     loaded = true;
 }
 
-cl::command_queue::command_queue(cl::context& ctx) : ctx(ctx)
+cl::command_queue::command_queue(cl::context& ctx) : command_queue(ctx, 0)
+{
+
+}
+
+cl::command_queue::command_queue(cl::context& ctx, cl_command_queue_properties props) : ctx(ctx)
 {
     cl_int err;
 
     #ifndef GPU_PROFILE
-    cqueue = clCreateCommandQueue(ctx.get(), ctx.selected_device, 0, &err);
+    cqueue = clCreateCommandQueue(ctx.get(), ctx.selected_device, props, &err);
     #else
-    cqueue = clCreateCommandQueue(ctx.get(), ctx.selected_device, CL_QUEUE_PROFILING_ENABLE, &err);
+    cqueue = clCreateCommandQueue(ctx.get(), ctx.selected_device, CL_QUEUE_PROFILING_ENABLE | props, &err);
     #endif
 
     if(err != CL_SUCCESS)

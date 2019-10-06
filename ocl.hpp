@@ -79,6 +79,10 @@ namespace cl
         {
             if(data)
                 delete data;
+
+            data = nullptr;
+
+            clReleaseEvent(cevent);
         }
 
         T* front_ptr()
@@ -110,6 +114,8 @@ namespace cl
                 delete data;
 
             data = nullptr;
+
+            clReleaseEvent(cevent);
         }
 
         T* front_ptr()
@@ -122,7 +128,8 @@ namespace cl
 
         void auto_cleanup()
         {
-            assert(data);
+            if(data == nullptr)
+                return;
 
             set_completion_callback([](cl_event, cl_int, void* in)
             {
@@ -304,6 +311,7 @@ namespace cl
         context& ctx;
 
         command_queue(context& ctx);
+        command_queue(context& ctx, cl_command_queue_properties);
 
         ///size defaults to -1 which means map the whole buffer
         void* map(buffer& v, cl_map_flags flag, int64_t size = -1);
@@ -451,6 +459,11 @@ namespace cl
         void block()
         {
             clFinish(cqueue);
+        }
+
+        void flush()
+        {
+            clFlush(cqueue);
         }
 
         operator cl_command_queue() {return cqueue;}
@@ -603,6 +616,44 @@ namespace cl
                 {
                     data.invalid = false;
                 }
+            }
+
+            return data;
+        }
+
+        template<typename T>
+        write_event<T> async_write_image(command_queue& write_on, const std::vector<T>& in_dat, vec2i location, vec2i region)
+        {
+            write_event<T> data;
+
+            if(in_dat.size() == 0)
+                return data;
+
+            assert(format == IMAGE);
+
+            if(location.x() < 0 || location.y() < 0)
+                return data;
+
+            data.allocate_with(in_dat);
+
+            assert(location.x() + region.x() <= image_dims[0] && location.y() + region.y() <= image_dims[1]);
+
+            //cl_int ret = clEnqueueWriteBuffer(write_on, cmem, CL_FALSE, location.x() * sizeof(T), in_dat.size() * sizeof(T), data.front_ptr(), 0, nullptr, &data.cevent);
+
+            size_t iorigin[3] = {location.x(), location.y(), 0};
+            size_t iregion[3] = {region.x(), region.y(), 1};
+
+            cl_int ret = clEnqueueWriteImage(write_on.cqueue, cmem, CL_FALSE, iorigin, iregion, 0, 0, data.front_ptr(), 0, nullptr, &data.cevent);
+
+            if(ret != CL_SUCCESS)
+            {
+                std::cout << "Error in async write " << ret << std::endl;
+
+                data.invalid = true;
+            }
+            else
+            {
+                data.invalid = false;
             }
 
             return data;
